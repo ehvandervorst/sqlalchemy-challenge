@@ -26,12 +26,23 @@ app = Flask(__name__)
 @app.route("/")
 def home():
     return (
+        f"Welcome to the climate analysis page! <br/>"
         f"Available Routes:<br/>"
+        f"<br/>"
+        f"List of precipitation data in last year of the dataset <br/>"
         f"/api/v1.0/precipitation<br/>"
+        f"<br/>"
+        f"Data for all stations taking measurements <br/>"
         f"/api/v1.0/stations<br/>"
+        f"<br/>"
+        f"Temperature observations for the last year from the most active station <br/>"
         f"/api/v1.0/tobs<br/>"
-        f"/api/v1.0/start<br/>"
-        f"/api/v1.0/start/end"
+        f"<br/>"
+        f"Minimum, Average, and Maximum temperatures for a given start date. Please use 'yyyy-mm-dd' format. <br/>"
+        f"/api/v1.0/<start><br/>"
+        f"<br/>"
+        f"Minimum, Average, and Maximum temperatures between start and end dates. Please use 'yyyy-mm-dd'/'yyyy-mm-dd' format for start and end values. <br/>"
+        f"/api/v1.0/<start>/<end>"
     )
 
 @app.route("/api/v1.0/precipitation")
@@ -80,42 +91,29 @@ def tobs():
 
     return jsonify(year_temp)
 
-@app.route("/api/v1.0/start")
-def start():
+@app.route("/api/v1.0/<start>")
+def start(start):
     #Return a JSON list of the minimum temperature, the average temperature, and the max temperature for a given start or start-endrange.
     #When given the start only, calculate TMIN, TAVG and TMAX for all dates greater than and equal to the start date.
     session = Session(engine)
-    stemp = session.query(func.min(Measure.tobs), func.avg(Measure.tobs), func.max(Measure.tobs), Measure.date).filter(func.strftime("%Y-%m-%d", Measure.date) >= "2016-08-23").group_by(Measure.date).all()
+    stemp = session.query(func.min(Measure.tobs), func.avg(Measure.tobs), func.max(Measure.tobs)).\
+        filter(Measure.date >= start).all()
     session.close()
-        
-    start_temp = []
-    for min, avg, max, date in stemp:
-        temp_dict={}
-        temp_dict["date"] = date
-        temp_dict["min"] = min
-        temp_dict["average"] = avg
-        temp_dict["max"] = max
-        start_temp.append(temp_dict)
+    start_temp = list(np.ravel(stemp))
     return jsonify(start_temp)
 
 
-@app.route("/api/v1.0/start/end")
-def startend():
+@app.route("/api/v1.0/<start>/<end>")
+def startend(start, end):
 #When given the start and the end date, calculate the TMIN, TAVG, and TMAX for dates between the start and end date inclusive.
 
     session = Session(engine)
-    setemp = session.query(func.min(Measure.tobs), func.avg(Measure.tobs), func.max(Measure.tobs), Measure.date).filter(func.strftime("%Y-%m-%d", Measure.date) >= "2015-08-23").filter(func.strftime("%Y-%m-%d", Measure.date) <= "2016-08-23").group_by(Measure.date).all()
-    session.close()
-        
-    startend_temp = []
-    for min, avg, max, date in setemp:
-        setemp_dict={}
-        setemp_dict["date"] = date
-        setemp_dict["min"] = min
-        setemp_dict["average"] = avg
-        setemp_dict["max"] = max
-        startend_temp.append(setemp_dict)
-    return jsonify(startend_temp)
+  
+    setemp = session.query(func.min(Measure.tobs), func.avg(Measure.tobs), func.max(Measure.tobs)).\
+        filter(Measure.date >= start).filter(Measure.date <= end).all()
+    session.close()  
+    start_end_temp = list(np.ravel(setemp))
+    return jsonify(start_end_temp)
 
 if __name__ == "__main__":
     app.run(debug=True)
